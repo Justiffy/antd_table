@@ -97,13 +97,13 @@ export default function App() {
     //   onResize={({ width }) => {
     //     setTableWidth(width);
     //   }}
-    // >
+    // >  
     <Table
       bordered
       className="virtual-table"
       rowKey="id"
       pagination={false}
-      dataSource={groups.slice(0, 1)}
+      dataSource={groups.slice(0, 5)}
       columns={columns}
       // scroll={scroll}
       // components={{
@@ -111,16 +111,7 @@ export default function App() {
       // }}
       components={{
         body: {
-          row: (q, w) => {
-            // console.log("q: ", q);
-            return (
-              <tr>
-                {q.children.map((el) => (
-                  <td>{el}</td>
-                ))}
-              </tr>
-            );
-          }
+          row: React.memo(row),
         }
       }}
       expandable={{
@@ -131,5 +122,17 @@ export default function App() {
       rowSelection
     />
     // </ResizeObserver>
+  );
+}
+
+const row = (q, ...w) => {
+  return (
+    <tr>
+      {q.children.map((el) => {
+        return (
+          <td>{el}</td>
+        )
+      })}
+    </tr>
   );
 }
