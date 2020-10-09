@@ -5,7 +5,7 @@ import classNames from "classnames";
 import { VariableSizeGrid as Grid } from "react-window";
 
 import data from "./data.json";
-import columns from "./columns";
+import columns, { rawColumns } from "./columns";
 import { numerateData } from "./helpers";
 
 import "antd/dist/antd.css";
@@ -15,14 +15,15 @@ export default function App() {
   const scroll = { y: 600, x: 600 };
 
   const widthColumnCount = columns.filter(({ width }) => !width).length;
-  const mergedColumns = columns.map((column) => {
+  const mergedColumns = rawColumns.map((column) => {
     if (column.width) {
       return column;
     }
 
     return {
       ...column,
-      width: Math.floor(tableWidth / widthColumnCount)
+      // width: Math.floor(tableWidth / widthColumnCount),
+      width: 150,
     };
   });
 
@@ -35,7 +36,7 @@ export default function App() {
         if (gridRef.current) {
           gridRef.current.scrollTo({ scrollLeft });
         }
-      }
+      },
     });
 
     return obj;
@@ -45,7 +46,7 @@ export default function App() {
     gridRef.current &&
       gridRef.current.resetAfterIndices({
         columnIndex: 0,
-        shouldForceUpdate: false
+        shouldForceUpdate: false,
       });
   };
 
@@ -54,24 +55,21 @@ export default function App() {
   const renderVirtualList = (rawData, { scrollbarSize, ref, onScroll }) => {
     ref.current = connectObject;
     const totalHeight = rawData.length * 54;
+
+    console.log("rawData: ", rawData);
     return (
       <Grid
         ref={gridRef}
         className="virtual-grid"
-        columnCount={mergedColumns.length}
-        columnWidth={(index) => {
-          const { width } = mergedColumns[index];
-          return totalHeight > scroll.y && index === mergedColumns.length - 1
-            ? width - scrollbarSize - 1
-            : width;
-        }}
+        columnCount={13}
+        columnWidth={(index) => 150}
         height={scroll.y}
         rowCount={rawData.length}
         rowHeight={() => 54}
-        width={1200}
+        width={1460}
         onScroll={({ scrollLeft }) => {
           onScroll({
-            scrollLeft
+            scrollLeft,
           });
         }}
       >
@@ -79,49 +77,77 @@ export default function App() {
           <div
             className={classNames("virtual-table-cell", {
               "virtual-table-cell-last":
-                columnIndex === mergedColumns.length - 1
+                columnIndex === mergedColumns.length - 1,
             })}
             style={style}
           >
-            {rawData[rowIndex][mergedColumns[columnIndex].dataIndex]}
+            {/* {console.log("www: ", mergedColumns[columnIndex])}
+            {rawData[rowIndex]?.[mergedColumns[columnIndex].dataIndex]} */}
+            {mergedColumns[columnIndex].render
+              ? mergedColumns[columnIndex].render(
+                  rawData[rowIndex]?.[mergedColumns[columnIndex].dataIndex],
+                  rawData[rowIndex]
+                )
+              : rawData[rowIndex]?.[mergedColumns[columnIndex].dataIndex]}
           </div>
         )}
       </Grid>
     );
   };
 
+  const helper = (ww) => {
+    const reducedData = ww.reduce((acc, cur) => {
+      if (cur.children?.length > 0) {
+        const { children, ...otherData } = cur;
+        return [...acc, { ...otherData, expand: "-" }, ...cur.children];
+      }
+      return [...acc, cur];
+    }, []);
+
+    return reducedData;
+  };
+
+  function flatChildren(arr) {
+    return arr.reduce(function (total, curr) {
+      if (curr.children) total = [...total, ...flatChildren(curr.children)];
+      total.push(curr);
+      return total;
+    }, []);
+  }
+
   const groups = useMemo(() => numerateData(data), []);
+  const newData = helper(groups);
+
+  console.log("newData: ", newData);
 
   return (
-    // <ResizeObserver
-    //   onResize={({ width }) => {
-    //     setTableWidth(width);
-    //   }}
-    // >  
-    <Table
-      bordered
-      className="virtual-table"
-      rowKey="id"
-      pagination={false}
-      dataSource={groups.slice(0, 5)}
-      columns={columns}
-      // scroll={scroll}
-      // components={{
-      //   body: renderVirtualList
-      // }}
-      components={{
-        body: {
-          row: React.memo(row),
-        }
+    <ResizeObserver
+      onResize={({ width }) => {
+        setTableWidth(width);
       }}
-      expandable={{
-        rowExpandable: (record) => record?.children?.length,
-        defaultExpandAllRows: true,
-        indentSize: 0
-      }}
-      rowSelection
-    />
-    // </ResizeObserver>
+    >
+      <Table
+        bordered
+        className="virtual-table"
+        rowKey="id"
+        pagination={false}
+        dataSource={newData}
+        columns={columns}
+        scroll={scroll}
+        components={{
+          body: renderVirtualList,
+        }}
+        components={{
+          body: renderVirtualList,
+        }}
+        // expandable={{
+        //   rowExpandable: (record) => record?.children?.length,
+        //   defaultExpandAllRows: true,
+        //   indentSize: 0,
+        // }}
+        rowSelection
+      />
+    </ResizeObserver>
   );
 }
 
@@ -129,10 +155,8 @@ const row = (q, ...w) => {
   return (
     <tr>
       {q.children.map((el) => {
-        return (
-          <td>{el}</td>
-        )
+        return <td>{el}</td>;
       })}
     </tr>
   );
-}
+};
